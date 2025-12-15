@@ -3,49 +3,59 @@ Okta Authentication & Token Exchange
 
 Handles:
 1. Token validation
-2. Token exchange (RFC 8693)
-3. ID-JAG cross-app access
-4. Agent credential management
+2. Token exchange (RFC 8693) with JWT Bearer assertion
+3. ID-JAG cross-app access for AI Agents
+4. Agent credential management using JWK private keys
 """
 
 import os
 import json
 import time
+import uuid
 import httpx
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from jose import jwt, JWTError
+from jose.constants import ALGORITHMS
 import logging
 
 logger = logging.getLogger(__name__)
 
+# MCP scopes available for the Sales Agent (orchestrator)
+MCP_SCOPES = ["mcp:read", "mcp:inventory", "mcp:pricing", "mcp:customers"]
+
 
 class OktaAuth:
     """
-    Okta authentication and token exchange manager.
+    Okta authentication and token exchange manager for AI Agents.
 
     Implements:
     - Token validation using Okta JWKS
-    - Token exchange (RFC 8693) for agent-to-agent communication
+    - Token exchange (RFC 8693) with JWT Bearer client assertion
     - ID-JAG cross-app access for MCP servers
+    - Proper AI Agent authentication using JWK private keys
     """
 
     def __init__(self):
         """Initialize with environment variables."""
-        self.domain = os.getenv("OKTA_DOMAIN", "")
-        self.client_id = os.getenv("OKTA_CLIENT_ID", "")
-        self.client_secret = os.getenv("OKTA_CLIENT_SECRET", "")
-        self.issuer = os.getenv("OKTA_ISSUER", f"{self.domain}/oauth2/default")
+        self.domain = os.getenv("OKTA_DOMAIN", "").rstrip("/")
+        self.client_id = os.getenv("OKTA_CLIENT_ID", "")  # Sales Agent App client ID
 
-        # AI Agent credentials (for ID-JAG)
+        # AI Agent credentials (JWK private key for JWT Bearer)
         self.agent_id = os.getenv("OKTA_AI_AGENT_ID", "")
         self._agent_private_key = None
 
-        # Custom auth server for MCP
-        self.custom_auth_server_id = os.getenv("OKTA_CUSTOM_AUTH_SERVER_ID", "")
-        self.custom_audience = os.getenv("OKTA_CUSTOM_AUTH_SERVER_AUDIENCE", "")
+        # MCP Authorization Server
+        self.mcp_auth_server_id = os.getenv("OKTA_MCP_AUTH_SERVER_ID", "aus8x7lzid61nnRv70g7")
+        self.mcp_audience = os.getenv("OKTA_MCP_AUDIENCE", "api://progear-mcp")
+
+        # Main Authorization Server (for user auth)
+        self.main_auth_server_id = os.getenv("OKTA_MAIN_AUTH_SERVER_ID", "aus8x7md5e7ObXMAH0g7")
+        self.main_audience = os.getenv("OKTA_MAIN_AUDIENCE", "api://progear-main")
 
         # Token cache
         self._token_cache: Dict[str, Dict[str, Any]] = {}
+        self._jwks_cache: Optional[Dict] = None
+        self._jwks_cache_time: float = 0
 
     @property
     def agent_private_key(self) -> Optional[Dict]:
@@ -55,9 +65,62 @@ class OktaAuth:
             if key_json:
                 try:
                     self._agent_private_key = json.loads(key_json)
-                except json.JSONDecodeError:
-                    logger.error("Failed to parse OKTA_AI_AGENT_PRIVATE_KEY")
+                    logger.info(f"Loaded agent private key with kid: {self._agent_private_key.get('kid', 'unknown')}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse OKTA_AI_AGENT_PRIVATE_KEY: {e}")
         return self._agent_private_key
+
+    @property
+    def mcp_token_endpoint(self) -> str:
+        """Get the token endpoint for the MCP auth server."""
+        return f"{self.domain}/oauth2/{self.mcp_auth_server_id}/v1/token"
+
+    @property
+    def main_token_endpoint(self) -> str:
+        """Get the token endpoint for the main auth server."""
+        return f"{self.domain}/oauth2/{self.main_auth_server_id}/v1/token"
+
+    def _create_client_assertion(self, token_endpoint: str) -> str:
+        """
+        Create a JWT client assertion for authentication.
+
+        This is how AI Agents authenticate to Okta - using their JWK private key
+        to sign a JWT assertion instead of using a client secret.
+
+        Args:
+            token_endpoint: The token endpoint URL (used as audience)
+
+        Returns:
+            Signed JWT assertion string
+        """
+        if not self.agent_private_key:
+            raise ValueError("Agent private key not configured")
+
+        now = int(time.time())
+
+        # JWT claims for client assertion
+        claims = {
+            "iss": self.client_id,  # Issuer is the client ID
+            "sub": self.client_id,  # Subject is the client ID
+            "aud": token_endpoint,  # Audience is the token endpoint
+            "iat": now,
+            "exp": now + 300,  # 5 minute expiry
+            "jti": str(uuid.uuid4()),  # Unique token ID
+        }
+
+        # Sign with the agent's private key
+        private_key = self.agent_private_key
+        algorithm = private_key.get("alg", "RS256")
+
+        assertion = jwt.encode(
+            claims,
+            private_key,
+            algorithm=algorithm,
+            headers={"kid": private_key.get("kid")}
+        )
+
+        logger.debug(f"Created client assertion for {self.client_id}")
+        return assertion
 
     async def validate_token(self, token: str) -> Dict[str, Any]:
         """
@@ -81,8 +144,7 @@ class OktaAuth:
             }
 
         try:
-            # Fetch JWKS and validate
-            # TODO: Implement proper JWKS validation with okta-jwt-verifier
+            # For production, implement proper JWKS validation
             # For now, decode without verification (demo only!)
             claims = jwt.get_unverified_claims(token)
             return claims
@@ -90,121 +152,160 @@ class OktaAuth:
             logger.error(f"Token validation failed: {e}")
             raise ValueError(f"Invalid token: {e}")
 
-    async def exchange_token(
+    async def exchange_token_for_mcp(
         self,
-        token: str,
-        target_audience: str,
-        scope: str,
-        source_agent: Optional[str] = None
-    ) -> str:
+        user_token: str,
+        scopes: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """
-        Exchange a token for a new token with different audience/scope.
+        Exchange a user's token for an MCP access token.
 
-        This implements RFC 8693 token exchange.
+        This is the ID-JAG (Cross App Access) flow:
+        1. User's ID/access token is the subject token
+        2. Agent authenticates using JWT Bearer (private key)
+        3. Okta returns an access token for the MCP audience
 
         Args:
-            token: The source token (user or agent token)
-            target_audience: The audience for the new token
-            scope: The scopes to request
-            source_agent: If set, use this agent's credentials
+            user_token: The user's ID or access token
+            scopes: List of scopes to request (defaults to all MCP scopes)
 
         Returns:
-            New access token
-
-        Token Exchange Flow:
-        1. User ID Token -> ID-JAG Token (agent assertion)
-        2. ID-JAG Token -> MCP Access Token
+            Dict with access_token, token_type, expires_in, scope
         """
+        if scopes is None:
+            scopes = MCP_SCOPES
+
+        scope_string = " ".join(scopes)
+
         # Demo mode
-        if not self.domain or token == "demo-token":
-            logger.info(f"[Demo] Token exchange: {target_audience}, scopes: {scope}")
-            return f"demo-token-{target_audience}"
+        if not self.domain or user_token == "demo-token" or not self.agent_private_key:
+            logger.info(f"[Demo] Token exchange for MCP, scopes: {scope_string}")
+            return {
+                "access_token": f"demo-mcp-token-{int(time.time())}",
+                "token_type": "Bearer",
+                "expires_in": 3600,
+                "scope": scope_string,
+                "demo_mode": True
+            }
 
         # Check cache
-        cache_key = f"{target_audience}:{scope}"
+        cache_key = f"mcp:{scope_string}:{hash(user_token)}"
         if cache_key in self._token_cache:
             cached = self._token_cache[cache_key]
             if cached["expires_at"] > time.time():
-                return cached["access_token"]
+                logger.debug("Returning cached MCP token")
+                return cached["response"]
 
-        # Perform token exchange
-        token_endpoint = f"{self.issuer}/v1/token"
+        # Create client assertion (JWT Bearer)
+        try:
+            client_assertion = self._create_client_assertion(self.mcp_token_endpoint)
+        except Exception as e:
+            logger.error(f"Failed to create client assertion: {e}")
+            raise ValueError(f"Failed to authenticate agent: {e}")
 
+        # Token exchange request
         data = {
             "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "subject_token": token,
-            "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
-            "audience": target_audience,
-            "scope": scope,
+            "subject_token": user_token,
+            "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
+            "audience": self.mcp_audience,
+            "scope": scope_string,
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion": client_assertion,
         }
 
-        auth = (self.client_id, self.client_secret)
-
         async with httpx.AsyncClient() as client:
+            logger.info(f"Exchanging token for MCP access, audience: {self.mcp_audience}")
             response = await client.post(
-                token_endpoint,
+                self.mcp_token_endpoint,
                 data=data,
-                auth=auth,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
 
             if response.status_code != 200:
-                logger.error(f"Token exchange failed: {response.text}")
-                raise ValueError(f"Token exchange failed: {response.status_code}")
+                error_detail = response.text
+                logger.error(f"Token exchange failed: {response.status_code} - {error_detail}")
+                raise ValueError(f"Token exchange failed: {response.status_code} - {error_detail}")
 
             result = response.json()
 
             # Cache the token
             self._token_cache[cache_key] = {
-                "access_token": result["access_token"],
+                "response": result,
                 "expires_at": time.time() + result.get("expires_in", 3600) - 60
             }
 
-            return result["access_token"]
+            logger.info(f"Token exchange successful, scopes: {result.get('scope', 'unknown')}")
+            return result
 
-    async def get_id_jag_token(self, user_id_token: str) -> str:
+    async def get_mcp_token(
+        self,
+        user_token: str,
+        resource_type: str = "all"
+    ) -> str:
         """
-        Exchange user ID token for an ID-JAG (agent) token.
-
-        This is the first step in cross-app access:
-        User ID Token -> ID-JAG Token -> MCP Access Token
+        Get an MCP access token for a specific resource type.
 
         Args:
-            user_id_token: User's ID token from Okta
+            user_token: The user's token to exchange
+            resource_type: Type of resource - "inventory", "pricing", "customers", or "all"
 
         Returns:
-            ID-JAG token for agent operations
+            Access token string for MCP
         """
-        if not self.agent_private_key:
-            logger.warning("No agent private key configured, using demo mode")
-            return f"demo-id-jag-token"
+        # Map resource type to scopes
+        scope_map = {
+            "inventory": ["mcp:read", "mcp:inventory"],
+            "pricing": ["mcp:read", "mcp:pricing"],
+            "customers": ["mcp:read", "mcp:customers"],
+            "all": MCP_SCOPES,  # Sales agent has all scopes
+        }
 
-        # Create JWT bearer assertion using agent private key
-        # This proves the agent's identity to Okta
+        scopes = scope_map.get(resource_type, MCP_SCOPES)
+        result = await self.exchange_token_for_mcp(user_token, scopes)
+        return result["access_token"]
 
-        # TODO: Implement full ID-JAG flow with JWT bearer
-        # For now, use regular token exchange
-        return await self.exchange_token(
-            token=user_id_token,
-            target_audience=self.custom_audience,
-            scope="mcp:read mcp:write"
-        )
-
-    async def get_mcp_token(self, id_jag_token: str, mcp_audience: str) -> str:
+    async def get_token_info(self, user_token: str) -> Dict[str, Any]:
         """
-        Exchange ID-JAG token for MCP server access token.
+        Get information about what tokens are available for this user.
 
-        This is the second step in cross-app access:
-        User ID Token -> ID-JAG Token -> MCP Access Token
+        Useful for demo/debugging to show the token exchange flow.
 
         Args:
-            id_jag_token: The ID-JAG token
-            mcp_audience: The MCP server audience
+            user_token: The user's token
 
         Returns:
-            Access token for MCP server
+            Dict with token info and available scopes
         """
-        return await self.exchange_token(
-            token=id_jag_token,
-            target_audience=mcp_audience,
-            scope="mcp:read mcp:write"
-        )
+        user_claims = await self.validate_token(user_token)
+
+        return {
+            "user": {
+                "sub": user_claims.get("sub"),
+                "email": user_claims.get("email"),
+                "name": user_claims.get("name"),
+            },
+            "agent": {
+                "id": self.agent_id,
+                "client_id": self.client_id,
+                "has_private_key": self.agent_private_key is not None,
+            },
+            "mcp": {
+                "auth_server_id": self.mcp_auth_server_id,
+                "audience": self.mcp_audience,
+                "available_scopes": MCP_SCOPES,
+            },
+            "demo_mode": not self.domain or not self.agent_private_key,
+        }
+
+
+# Singleton instance
+_okta_auth: Optional[OktaAuth] = None
+
+
+def get_okta_auth() -> OktaAuth:
+    """Get or create the OktaAuth singleton."""
+    global _okta_auth
+    if _okta_auth is None:
+        _okta_auth = OktaAuth()
+    return _okta_auth

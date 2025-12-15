@@ -1,41 +1,66 @@
 """
-Sales Agent - Handles orders, quotes, and deals.
+Sales Agent - The orchestrator for ProGear sales operations.
 
 This is a VISIBLE agent class - customers can see this code.
-The agent is registered as a first-class identity in Okta.
+The agent is registered as a first-class identity in Okta's AI Agent Directory.
+
+Security Model:
+- Agent ID: wlp8x5q7mvH86KvFJ0g7
+- App Client ID: 0oa8x5nsjp8aDUpB70g7
+- Scopes: mcp:read, mcp:inventory, mcp:pricing, mcp:customers (full orchestrator access)
+- Authentication: JWT Bearer with JWK private key
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage, SystemMessage
+import logging
+
+from ..auth.okta_auth import OktaAuth, get_okta_auth, MCP_SCOPES
+
+logger = logging.getLogger(__name__)
 
 
 class SalesAgent:
     """
-    Sales Agent handles all sales-related operations.
+    Sales Agent - The primary orchestrator for ProGear.
 
     Capabilities:
     - Create and manage quotes
     - Process orders
     - Track deals and pipeline
+    - Access inventory, pricing, and customer data via MCP
 
     Security:
-    - Registered as Okta AI Agent
-    - Uses token exchange (ID-JAG) for MCP access
-    - Scoped to sales:read, sales:write
+    - Registered in Okta AI Agent Directory
+    - Uses ID-JAG (Cross App Access) for MCP token exchange
+    - Full MCP scopes as orchestrator: mcp:read, mcp:inventory, mcp:pricing, mcp:customers
     """
 
-    def __init__(self, user_token: str, okta_auth: Optional[Any] = None):
+    # Agent identity (from Okta AI Agent Directory)
+    AGENT_ID = "wlp8x5q7mvH86KvFJ0g7"
+    AGENT_NAME = "ProGear Sales Agent"
+
+    # OAuth/OIDC app (linked to agent)
+    CLIENT_ID = "0oa8x5nsjp8aDUpB70g7"
+
+    # MCP scopes this agent can request (configured in Managed Connections)
+    SCOPES = MCP_SCOPES  # ["mcp:read", "mcp:inventory", "mcp:pricing", "mcp:customers"]
+
+    def __init__(self, user_token: str, okta_auth: Optional[OktaAuth] = None):
         """
         Initialize the Sales Agent.
 
         Args:
-            user_token: The user's access token (will be exchanged for agent token)
-            okta_auth: OktaAuth instance for token exchange
+            user_token: The user's ID token (will be exchanged for MCP token)
+            okta_auth: OktaAuth instance for token exchange (uses singleton if not provided)
         """
         self.user_token = user_token
-        self.okta_auth = okta_auth
-        self.agent_name = "sales-agent"
-        self.scopes = ["sales:read", "sales:write"]
+        self.okta_auth = okta_auth or get_okta_auth()
+
+        # Token state
+        self._mcp_token: Optional[str] = None
+        self._token_info: Optional[Dict] = None
 
         # Initialize LLM (Claude)
         self.llm = ChatAnthropic(
@@ -43,25 +68,48 @@ class SalesAgent:
             temperature=0.7,
         )
 
-    async def get_agent_token(self) -> str:
+    async def get_mcp_token(self, resource_type: str = "all") -> str:
         """
-        Exchange user token for sales agent token.
+        Exchange user token for MCP access token.
 
-        This is the ID-JAG flow:
-        User Token -> ID-JAG Token -> MCP Access Token
+        This is the ID-JAG (Cross App Access) flow:
+        1. User's ID token is presented
+        2. Agent authenticates with its JWK private key
+        3. Okta returns MCP-scoped access token
+
+        Args:
+            resource_type: "inventory", "pricing", "customers", or "all"
+
+        Returns:
+            MCP access token
         """
-        if not self.okta_auth:
-            return "demo-token"  # Demo mode
+        token = await self.okta_auth.get_mcp_token(self.user_token, resource_type)
+        self._mcp_token = token
+        return token
 
-        # TODO: Implement actual token exchange
-        # return await self.okta_auth.exchange_token(
-        #     token=self.user_token,
-        #     target_audience="sales-agent-audience",
-        #     scope=" ".join(self.scopes)
-        # )
-        return "demo-token"
+    async def get_token_exchange_info(self) -> Dict[str, Any]:
+        """
+        Get detailed info about the token exchange for demo visualization.
 
-    async def process(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        Returns:
+            Dict with user info, agent info, and token exchange details
+        """
+        if self._token_info is None:
+            self._token_info = await self.okta_auth.get_token_info(self.user_token)
+
+        return {
+            **self._token_info,
+            "token_exchange": {
+                "flow": "ID-JAG (Cross App Access)",
+                "from": "user_id_token",
+                "to": "mcp_access_token",
+                "audience": self.okta_auth.mcp_audience,
+                "scopes_requested": self.SCOPES,
+                "agent_authentication": "JWT Bearer with JWK private key",
+            }
+        }
+
+    async def process(self, task: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process a sales-related task.
 
@@ -72,36 +120,107 @@ class SalesAgent:
         Returns:
             Dict with result, agent info, and token exchange details
         """
-        # Get agent-specific token
-        agent_token = await self.get_agent_token()
+        context = context or {}
 
-        # TODO: Use agent_token to call MCP tools
-        # For now, return demo response
+        # Get MCP token for accessing resources
+        try:
+            mcp_token = await self.get_mcp_token("all")
+            token_exchange_success = True
+            token_exchange_error = None
+        except Exception as e:
+            logger.error(f"Token exchange failed: {e}")
+            mcp_token = None
+            token_exchange_success = False
+            token_exchange_error = str(e)
+
+        # Prepare messages for Claude
+        messages = [
+            SystemMessage(content=self.get_system_prompt()),
+            HumanMessage(content=task)
+        ]
+
+        # Call Claude
+        try:
+            response = await self.llm.ainvoke(messages)
+            llm_response = response.content
+        except Exception as e:
+            logger.error(f"LLM call failed: {e}")
+            llm_response = f"I apologize, but I encountered an error processing your request: {e}"
+
+        # Get token exchange info for visualization
+        token_info = await self.get_token_exchange_info()
 
         return {
-            "agent": self.agent_name,
-            "result": f"[Sales Agent] Processing: {task}",
-            "token_exchange": {
-                "from": "user",
-                "to": "sales-agent",
-                "audience": "sales-agent-audience",
-                "scopes": self.scopes,
+            "agent": {
+                "name": self.AGENT_NAME,
+                "id": self.AGENT_ID,
+                "client_id": self.CLIENT_ID,
             },
-            "tools_called": [],  # Will be populated when MCP is connected
+            "result": llm_response,
+            "token_exchange": {
+                "success": token_exchange_success,
+                "error": token_exchange_error,
+                "flow": "User ID Token → JWT Bearer Assertion → MCP Access Token",
+                "audience": self.okta_auth.mcp_audience,
+                "scopes": self.SCOPES,
+                "has_mcp_token": mcp_token is not None,
+            },
+            "security": {
+                "user": token_info.get("user", {}),
+                "agent_authenticated": token_info.get("agent", {}).get("has_private_key", False),
+                "demo_mode": token_info.get("demo_mode", True),
+            },
+            "tools_called": [],  # Will be populated when MCP tools are connected
         }
 
     def get_system_prompt(self) -> str:
         """Get the system prompt for this agent."""
-        return """You are the ProGear Sales Agent, an AI assistant specialized in sales operations.
+        return """You are the ProGear Sales Agent, an AI assistant specialized in sales operations for ProGear Sporting Goods.
 
 Your capabilities:
-- Create and manage sales quotes
+- Create and manage sales quotes for sporting goods equipment
 - Process customer orders
-- Track deals in the pipeline
+- Track deals in the sales pipeline
 - Provide sales analytics and insights
+- Access inventory data to check product availability
+- Access pricing data for quotes and discounts
+- Access customer data for personalized service
 
-You work for ProGear, a sporting goods company. Always be helpful, professional, and accurate.
-When you need data, you'll use MCP tools to access the sales database.
+You work for ProGear, a B2B sporting goods company serving retailers and sports teams.
 
-Important: You operate with security controls. Your access is scoped to sales data only,
-and all your actions are audited through Okta."""
+IMPORTANT SECURITY CONTEXT:
+You are operating with Okta AI Agent governance:
+- Your identity is registered in Okta's AI Agent Directory
+- You authenticate using a JWK private key (JWT Bearer)
+- Your access to data is controlled by MCP scopes
+- All your actions are audited through Okta
+- You are acting ON BEHALF OF the logged-in user - their permissions apply
+
+When you need data, you'll use MCP tools to access the sales, inventory, pricing, and customer databases.
+Always be helpful, professional, and accurate. If you don't have access to certain data, explain why."""
+
+    async def call_mcp_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Call an MCP tool with the exchanged token.
+
+        Args:
+            tool_name: The MCP tool to call
+            params: Parameters for the tool
+
+        Returns:
+            Tool result
+        """
+        # Ensure we have an MCP token
+        if not self._mcp_token:
+            self._mcp_token = await self.get_mcp_token("all")
+
+        # TODO: Implement actual MCP tool call with the token
+        # This will connect to the MCP server on Render
+        logger.info(f"Calling MCP tool: {tool_name} with token")
+
+        return {
+            "tool": tool_name,
+            "params": params,
+            "result": f"[MCP] Tool {tool_name} called (implementation pending)",
+            "token_used": self._mcp_token is not None,
+        }
