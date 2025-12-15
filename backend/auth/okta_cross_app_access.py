@@ -73,15 +73,16 @@ class OktaCrossAppAccessManager:
 
             # STEP 1 Config: ID token → ID-JAG token exchange
             # Uses JWT bearer assertion with agent credentials
+            # IMPORTANT: Must use the same auth server that issued the ID token
             self.main_config = OktaAIConfig(
                 oktaDomain=self.okta_domain,
                 clientId=self.agent_id,
                 clientSecret="",  # Not used with JWT bearer
-                authorizationServerId="default",  # POST to /oauth2/v1/token
+                authorizationServerId=self.main_auth_server_id,  # Must match ID token issuer
                 principalId=self.agent_id,
                 privateJWK=agent_private_key
             )
-            logger.info("Main config loaded for ID-JAG exchange (JWT Bearer)")
+            logger.info(f"Main config loaded for ID-JAG exchange, auth_server={self.main_auth_server_id}")
 
             # STEP 3 Config: ID-JAG → MCP auth server token exchange
             if self.mcp_auth_server_id:
