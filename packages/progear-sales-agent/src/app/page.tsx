@@ -25,6 +25,10 @@ const exampleQuestions = [
   { text: "Which customers have Platinum tier?", icon: "⭐" },
 ];
 
+const CHAT_STORAGE_KEY = 'progear-chat-messages';
+const AGENT_FLOW_STORAGE_KEY = 'progear-agent-flow';
+const TOKEN_EXCHANGE_STORAGE_KEY = 'progear-token-exchanges';
+
 export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -36,6 +40,44 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isLoadingAuth = status === 'loading';
+
+  // Load chat history from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedMessages = sessionStorage.getItem(CHAT_STORAGE_KEY);
+      const savedAgentFlow = sessionStorage.getItem(AGENT_FLOW_STORAGE_KEY);
+      const savedTokenExchanges = sessionStorage.getItem(TOKEN_EXCHANGE_STORAGE_KEY);
+
+      if (savedMessages) {
+        setChatMessages(JSON.parse(savedMessages));
+      }
+      if (savedAgentFlow) {
+        setCurrentAgentFlow(JSON.parse(savedAgentFlow));
+      }
+      if (savedTokenExchanges) {
+        setCurrentTokenExchanges(JSON.parse(savedTokenExchanges));
+      }
+    } catch (e) {
+      console.error('Error loading chat history:', e);
+    }
+  }, []);
+
+  // Save chat history to sessionStorage whenever it changes
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatMessages));
+    }
+  }, [chatMessages]);
+
+  // Save agent flow and token exchanges to sessionStorage
+  useEffect(() => {
+    if (currentAgentFlow.length > 0) {
+      sessionStorage.setItem(AGENT_FLOW_STORAGE_KEY, JSON.stringify(currentAgentFlow));
+    }
+    if (currentTokenExchanges.length > 0) {
+      sessionStorage.setItem(TOKEN_EXCHANGE_STORAGE_KEY, JSON.stringify(currentTokenExchanges));
+    }
+  }, [currentAgentFlow, currentTokenExchanges]);
 
   // Redirect to sign-in page if not authenticated
   useEffect(() => {
@@ -51,11 +93,12 @@ export default function Home() {
   const handleSignOut = async () => {
     await signOut({ redirect: false });
     const oktaIssuer = process.env.NEXT_PUBLIC_OKTA_ISSUER;
-    const returnTo = encodeURIComponent(`${window.location.origin}`);
+    // Redirect to the custom sign-in page after Okta logout
+    const returnTo = encodeURIComponent(`${window.location.origin}/auth/signin`);
     if (oktaIssuer) {
       window.location.href = `${oktaIssuer}/login/signout?fromURI=${returnTo}`;
     } else {
-      window.location.href = '/';
+      window.location.href = '/auth/signin';
     }
   };
 
