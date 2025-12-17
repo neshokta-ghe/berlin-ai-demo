@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AgentFlowCard from '@/components/AgentFlowCard';
 import TokenExchangeCard from '@/components/TokenExchangeCard';
@@ -27,6 +28,7 @@ const exampleQuestions = [
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,16 +37,18 @@ export default function Home() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isAuthenticated = status === 'authenticated';
   const isLoadingAuth = status === 'loading';
+
+  // Redirect to sign-in page if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-
-  const handleSignIn = () => {
-    signIn('okta');
-  };
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
@@ -125,6 +129,18 @@ export default function Home() {
     }
   };
 
+  // Show loading screen while checking auth status
+  if (isLoadingAuth || status === 'unauthenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary-light to-court-brown">
+        <div className="flex flex-col items-center space-y-4">
+          <span className="text-6xl animate-bounce">🏀</span>
+          <div className="text-white text-xl font-display">Loading CourtEdge ProGear...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-neutral-bg to-primary flex flex-col">
       {/* Header */}
@@ -164,29 +180,18 @@ export default function Home() {
               <span>Architecture</span>
             </Link>
 
-            {isLoadingAuth ? (
-              <div className="px-4 py-2 text-gray-300">Loading...</div>
-            ) : isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <span className="text-gray-200 text-sm">{session?.user?.email}</span>
-                <button
-                  onClick={handleSignOut}
-                  className="px-5 py-2.5 bg-white/10 hover:bg-accent/30 text-white rounded-lg transition border border-white/20 hover:border-accent/50 flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-gray-200 text-sm">{session?.user?.email}</span>
               <button
-                onClick={handleSignIn}
-                className="px-5 py-2.5 bg-accent hover:bg-court-orange text-white rounded-lg transition font-semibold shadow-lg"
+                onClick={handleSignOut}
+                className="px-5 py-2.5 bg-white/10 hover:bg-accent/30 text-white rounded-lg transition border border-white/20 hover:border-accent/50 flex items-center space-x-2"
               >
-                Sign In with Okta
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Sign Out</span>
               </button>
-            )}
+            </div>
           </div>
         </div>
       </header>
@@ -203,10 +208,9 @@ export default function Home() {
                   <div className="absolute inset-0 bg-accent/20 rounded-full blur-2xl animate-pulse"></div>
                   <span className="text-6xl relative z-10">🏀</span>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Welcome to CourtEdge ProGear</h2>
+                <h2 className="text-2xl font-bold text-white mb-2">Welcome, {session?.user?.name || 'Team Member'}!</h2>
                 <p className="text-gray-300 mb-6">
-                  Your AI-powered basketball equipment sales assistant.
-                  {!isAuthenticated && ' Sign in with Okta to get started.'}
+                  Your AI-powered basketball equipment sales assistant is ready. Ask about orders, inventory, pricing, or customers.
                 </p>
 
                 {/* Example Questions */}
@@ -214,9 +218,8 @@ export default function Home() {
                   {exampleQuestions.map((question, idx) => (
                     <button
                       key={idx}
-                      onClick={() => isAuthenticated && handleSendMessage(question)}
-                      disabled={!isAuthenticated}
-                      className="p-3 bg-white border-2 border-neutral-border hover:border-accent hover:shadow-lg rounded-xl transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+                      onClick={() => handleSendMessage(question)}
+                      className="p-3 bg-white border-2 border-neutral-border hover:border-accent hover:shadow-lg rounded-xl transition-all text-left group"
                     >
                       <span className="text-sm text-gray-700 group-hover:text-primary">
                         {question}
@@ -320,7 +323,7 @@ export default function Home() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Ask about orders, inventory, pricing, or customers..."
                   className="w-full px-5 py-3 border-2 border-neutral-border rounded-xl focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition text-gray-700 placeholder-gray-400"
-                  disabled={!isAuthenticated || isLoading}
+                  disabled={isLoading}
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-30">
                   🏀
@@ -328,7 +331,7 @@ export default function Home() {
               </div>
               <button
                 type="submit"
-                disabled={!isAuthenticated || isLoading || !message.trim()}
+                disabled={isLoading || !message.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-accent to-court-orange hover:from-court-orange hover:to-accent text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl flex items-center space-x-2 border-b-4 border-court-brown/50"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

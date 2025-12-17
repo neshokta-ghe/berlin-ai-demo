@@ -9,6 +9,9 @@ export const authOptions: NextAuthOptions = {
       issuer: process.env.NEXT_PUBLIC_OKTA_ISSUER!,
     }),
   ],
+  pages: {
+    signIn: '/auth/signin',
+  },
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
