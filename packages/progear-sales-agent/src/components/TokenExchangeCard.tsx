@@ -19,9 +19,22 @@ interface Props {
   exchanges: TokenExchange[];
 }
 
+// Helper to detect if an error is a policy denial (even if access_denied flag isn't set)
+const isPolicyDenial = (exchange: TokenExchange): boolean => {
+  if (exchange.access_denied) return true;
+  if (!exchange.error) return false;
+
+  const errorLower = exchange.error.toLowerCase();
+  const policyKeywords = [
+    'policy', 'denied', 'token_exchange_failed',
+    'no_matching_policy', 'access_denied', 'authorization'
+  ];
+  return policyKeywords.some(kw => errorLower.includes(kw));
+};
+
 export default function TokenExchangeCard({ exchanges }: Props) {
-  const granted = exchanges.filter(e => e.success && !e.access_denied);
-  const denied = exchanges.filter(e => e.access_denied);
+  const granted = exchanges.filter(e => e.success && !isPolicyDenial(e));
+  const denied = exchanges.filter(e => isPolicyDenial(e));
 
   return (
     <div className="bg-white rounded-xl border-2 border-neutral-border shadow-sm overflow-hidden">
@@ -60,99 +73,96 @@ export default function TokenExchangeCard({ exchanges }: Props) {
 
         {/* Exchange List */}
         <div className="space-y-2 max-h-64 overflow-y-auto">
-          {exchanges.map((exchange, idx) => (
-            <div
-              key={idx}
-              className={`rounded-lg border-2 p-3 transition-all ${
-                exchange.success && !exchange.access_denied
-                  ? 'border-success-green/30 bg-success-green/5'
-                  : 'border-error-red/30 bg-error-red/5'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: exchange.color }}
-                  >
-                    {exchange.agent.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-800 text-sm">
-                      {exchange.agent_name}
-                    </div>
-                    <div className="text-[10px] text-gray-500">
-                      {exchange.demo_mode ? 'Demo Mode' : 'ID-JAG Exchange'}
-                    </div>
-                  </div>
-                </div>
+          {exchanges.map((exchange, idx) => {
+            const isDenied = isPolicyDenial(exchange);
+            const isGranted = exchange.success && !isDenied;
 
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
-                  exchange.success && !exchange.access_denied
-                    ? 'bg-success-green/20 text-success-green'
-                    : 'bg-error-red/20 text-error-red'
-                }`}>
-                  {exchange.success && !exchange.access_denied ? (
-                    <>
-                      <CheckCircle className="w-3 h-3" />
-                      <span>Granted</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-3 h-3" />
-                      <span>Denied</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Granted Scopes */}
-              {exchange.success && !exchange.access_denied && exchange.scopes.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {exchange.scopes.map((scope, sIdx) => (
-                    <span
-                      key={sIdx}
-                      className="px-2 py-0.5 bg-success-green/10 text-success-green text-[10px] rounded-full font-mono border border-success-green/30"
+            return (
+              <div
+                key={idx}
+                className={`rounded-lg border-2 p-3 transition-all ${
+                  isGranted
+                    ? 'border-success-green/30 bg-success-green/5'
+                    : 'border-error-red/30 bg-error-red/5'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                      style={{ backgroundColor: exchange.color }}
                     >
-                      {scope}
-                    </span>
-                  ))}
-                </div>
-              )}
+                      {exchange.agent.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800 text-sm">
+                        {exchange.agent_name}
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {exchange.demo_mode ? 'Demo Mode' : 'ID-JAG Exchange'}
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Denied Scopes - show what was requested but denied */}
-              {exchange.access_denied && exchange.requested_scopes && exchange.requested_scopes.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-[10px] text-gray-500 mb-1">Requested scope(s):</div>
-                  <div className="flex flex-wrap gap-1">
-                    {exchange.requested_scopes.map((scope, sIdx) => (
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                    isGranted
+                      ? 'bg-success-green/20 text-success-green'
+                      : 'bg-error-red/20 text-error-red'
+                  }`}>
+                    {isGranted ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Granted</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3 h-3" />
+                        <span>Denied</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Granted Scopes */}
+                {isGranted && exchange.scopes.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {exchange.scopes.map((scope, sIdx) => (
                       <span
                         key={sIdx}
-                        className="px-2 py-0.5 bg-error-red/10 text-error-red text-[10px] rounded-full font-mono border border-error-red/30 line-through"
+                        className="px-2 py-0.5 bg-success-green/10 text-success-green text-[10px] rounded-full font-mono border border-success-green/30"
                       >
                         {scope}
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Policy blocked message - subtle for access_denied */}
-              {exchange.access_denied && (
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500">
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>Blocked by Okta governance policy</span>
-                </div>
-              )}
+                {/* Denied Scopes - show what was requested but denied */}
+                {isDenied && exchange.requested_scopes && exchange.requested_scopes.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex flex-wrap gap-1">
+                      {exchange.requested_scopes.map((scope, sIdx) => (
+                        <span
+                          key={sIdx}
+                          className="px-2 py-0.5 bg-error-red/10 text-error-red text-[10px] rounded-full font-mono border border-error-red/30 line-through"
+                        >
+                          {scope}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Error message - only for actual errors, not access_denied */}
-              {exchange.error && !exchange.access_denied && (
-                <div className="mt-2 text-xs text-error-red bg-error-red/10 px-2 py-1 rounded">
-                  {exchange.error}
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Policy blocked message - clean and subtle */}
+                {isDenied && (
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-gray-500">
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Blocked by Okta governance policy</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {exchanges.length === 0 && (
             <div className="text-center py-6 text-gray-400">
