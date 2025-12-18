@@ -273,8 +273,8 @@ export default function ArchitecturePage() {
                     </div>
 
                     {/* Response */}
+                    <div className="text-xs text-gray-500 mb-1">← Response from MCP</div>
                     <div className="bg-gray-900 rounded-lg p-3 font-mono text-sm">
-                      <div className="text-gray-400 text-xs mb-2">← Response from MCP</div>
                       <div className="text-green-400">200 OK</div>
                       <div className="text-gray-300 mt-1">{'{'} "available": 2340, "canFulfill": true {'}'}</div>
                     </div>
@@ -596,71 +596,71 @@ export default function ArchitecturePage() {
         {/* LangChain Orchestration */}
         <CollapsibleSection
           title="LangChain Orchestration"
-          subtitle="Intelligent routing to MCP servers"
+          subtitle="LangGraph workflow with intent-based scope detection"
           icon={<Cpu className="w-5 h-5" />}
           defaultOpen={true}
         >
-          <div className="mt-4">
-            <div className="bg-gray-50 rounded-xl p-6 mb-6">
-              <h3 className="font-bold text-gray-800 mb-4">How Routing Works</h3>
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">1</div>
-                  <div>
-                    <div className="font-semibold text-gray-800">User Query Analysis</div>
-                    <div className="text-sm text-gray-600">LangChain analyzes the natural language query to understand what data is needed.</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">2</div>
-                  <div>
-                    <div className="font-semibold text-gray-800">MCP Server Selection</div>
-                    <div className="text-sm text-gray-600">Based on the query, the orchestrator determines which MCP servers to invoke.</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">3</div>
-                  <div>
-                    <div className="font-semibold text-gray-800">Parallel Token Exchange</div>
-                    <div className="text-sm text-gray-600">ID-JAG tokens are exchanged for each required MCP server simultaneously.</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">4</div>
-                  <div>
-                    <div className="font-semibold text-gray-800">Response Aggregation</div>
-                    <div className="text-sm text-gray-600">Results from each MCP server are combined into a coherent response.</div>
-                  </div>
+          <div className="mt-4 space-y-6">
+            {/* Workflow Pipeline */}
+            <div className="bg-gray-50 rounded-xl p-5">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">LangGraph Workflow</h3>
+              <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm">
+                <div className="flex items-center gap-2 flex-wrap text-gray-300">
+                  <span className="px-2 py-1 bg-purple-500/30 rounded text-purple-300">router</span>
+                  <span className="text-gray-500">→</span>
+                  <span className="px-2 py-1 bg-okta-blue/30 rounded text-blue-300">exchange_tokens</span>
+                  <span className="text-gray-500">→</span>
+                  <span className="px-2 py-1 bg-green-500/30 rounded text-green-300">process_agents</span>
+                  <span className="text-gray-500">→</span>
+                  <span className="px-2 py-1 bg-gray-500/30 rounded text-gray-300">generate_response</span>
+                  <span className="text-gray-500">→</span>
+                  <span className="text-gray-500">END</span>
                 </div>
               </div>
             </div>
 
-            {/* Example Routing */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h3 className="font-bold text-gray-800 mb-4">Example: Multi-Server Query</h3>
-              <div className="bg-blue-50 rounded-lg p-4 mb-4 border-l-4 border-blue-500">
-                <div className="text-sm text-blue-800 font-mono">
+            {/* Router Decision */}
+            <div className="bg-white rounded-xl p-5 border border-gray-200">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Router Node Output</h3>
+              <p className="text-sm text-gray-600 mb-3">LLM analyzes query intent and returns agents + required scopes:</p>
+              <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+                <pre className="text-gray-300">{`{
+  "inventory": { "needed": true,  "scopes": ["inventory:read"] },
+  "customer":  { "needed": true,  "scopes": ["customer:lookup"] },
+  "pricing":   { "needed": true,  "scopes": ["pricing:discount"] },
+  "sales":     { "needed": true,  "scopes": ["sales:quote"] }
+}`}</pre>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 italic">Scope selection based on operation type: read queries → :read, write operations → :write, bulk pricing → :discount</p>
+            </div>
+
+            {/* Example with Scopes */}
+            <div className="bg-white rounded-xl p-5 border border-gray-200">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Example Query → Token Exchange</h3>
+              <div className="bg-purple-50 rounded-lg p-3 mb-4 border-l-4 border-purple-500">
+                <div className="text-sm text-purple-800 font-mono">
                   "Can we fulfill 1500 basketballs for State University at a bulk discount?"
                 </div>
               </div>
               <div className="grid md:grid-cols-4 gap-3">
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-purple-700 font-semibold text-sm">Customer MCP</div>
-                  <div className="text-xs text-purple-600 mt-1">Look up State University</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                   <div className="text-green-700 font-semibold text-sm">Inventory MCP</div>
-                  <div className="text-xs text-green-600 mt-1">Check basketball stock</div>
+                  <div className="font-mono text-xs text-green-600 mt-1 bg-green-100 px-2 py-0.5 rounded inline-block">inventory:read</div>
                 </div>
-                <div className="text-center p-3 bg-orange-50 rounded-lg">
+                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-purple-700 font-semibold text-sm">Customer MCP</div>
+                  <div className="font-mono text-xs text-purple-600 mt-1 bg-purple-100 px-2 py-0.5 rounded inline-block">customer:lookup</div>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
                   <div className="text-orange-700 font-semibold text-sm">Pricing MCP</div>
-                  <div className="text-xs text-orange-600 mt-1">Calculate bulk discount</div>
+                  <div className="font-mono text-xs text-orange-600 mt-1 bg-orange-100 px-2 py-0.5 rounded inline-block">pricing:discount</div>
                 </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="text-blue-700 font-semibold text-sm">Sales MCP</div>
-                  <div className="text-xs text-blue-600 mt-1">Generate quote</div>
+                  <div className="font-mono text-xs text-blue-600 mt-1 bg-blue-100 px-2 py-0.5 rounded inline-block">sales:quote</div>
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-3">Each MCP gets its own ID-JAG exchange → Okta policy evaluated per scope</p>
             </div>
           </div>
         </CollapsibleSection>
