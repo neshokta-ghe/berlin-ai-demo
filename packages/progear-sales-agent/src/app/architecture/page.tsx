@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { ChevronDown, ChevronRight, Shield, Key, Users, Server, ArrowRight, CheckCircle, XCircle, Cpu, Lock, GitBranch, Database, Activity, Bot } from 'lucide-react';
 import OktaSystemLog from '@/components/OktaSystemLog';
 
@@ -39,6 +40,13 @@ function CollapsibleSection({ title, subtitle, icon, children, defaultOpen = fal
 }
 
 export default function ArchitecturePage() {
+  const { data: session } = useSession();
+
+  // Extract user info from session for live token display
+  const userSub = (session?.user as { sub?: string })?.sub || '00u8xdeptoh4cK9pG0g7';
+  const userName = session?.user?.name || 'Sarah Sales';
+  const userEmail = session?.user?.email || 'sarah.sales@progear.demo';
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -123,23 +131,15 @@ export default function ArchitecturePage() {
                     <span className="text-gray-600">Step 2:</span> ID-JAG → <span className="font-mono text-green-600">MCP Access Token</span>
                   </div>
                 </div>
-                {/* Token Contents */}
-                <div className="bg-white/80 rounded-lg p-3 border border-okta-blue/20">
-                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-2 text-center">Final Token Contains</div>
-                  <div className="flex justify-center gap-6 text-xs">
-                    <div className="text-center">
-                      <div className="text-gray-500">User Identity</div>
-                      <div className="font-mono text-purple-600">sub: user_id</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-gray-500">Agent Identity</div>
-                      <div className="font-mono text-blue-600">actor.sub: wlp...</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-gray-500">Granted Scopes</div>
-                      <div className="font-mono text-green-600">scope: [...]</div>
-                    </div>
-                  </div>
+                {/* Token Contents - Live Data */}
+                <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm space-y-1">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-3 text-center">Final MCP Access Token Contains</div>
+                  <div><span className="text-gray-500">sub:</span>       <span className="text-purple-400">{userSub}</span> <span className="text-gray-500 text-xs italic ml-2">← {userName}</span></div>
+                  <div><span className="text-gray-500">actor.sub:</span> <span className="text-blue-400">wlp8x5q7mvH86KvFJ0g7</span> <span className="text-gray-500 text-xs italic ml-2">← ProGear Sales Agent</span></div>
+                  <div><span className="text-gray-500">aud:</span>       <span className="text-cyan-400">api://progear-inventory</span> <span className="text-gray-500 text-xs italic ml-2">← Target MCP</span></div>
+                  <div><span className="text-gray-500">scope:</span>     <span className="text-green-400">inventory:read</span> <span className="text-gray-500 text-xs italic ml-2">← Granted by policy</span></div>
+                  <div><span className="text-gray-500">iat:</span>       <span className="text-gray-400">{Math.floor(Date.now() / 1000)}</span> <span className="text-gray-500 text-xs italic ml-2">← Issued at</span></div>
+                  <div><span className="text-gray-500">exp:</span>       <span className="text-gray-400">{Math.floor(Date.now() / 1000) + 3600}</span> <span className="text-gray-500 text-xs italic ml-2">← Expires in 1hr</span></div>
                 </div>
               </div>
 
