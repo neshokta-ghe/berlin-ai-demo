@@ -1,419 +1,234 @@
-# Basketball Stats AI - Internal SSO Demo 🏀
+# ProGear Sales AI - Okta AI Agent Governance Demo
 
-> **A production-ready demonstration of Internal SSO** featuring OAuth 2.0 Token Exchange with a single authorization server, AI-powered NCAA basketball statistics, and comparison to Cross-App Access patterns.
+> **Enterprise AI Agent security demonstration** showcasing Okta AI Agent Governance with Cross App Access (XAA), ID-JAG token exchange, and role-based access control.
 
-![Internal SSO](https://img.shields.io/badge/OAuth-Internal%20SSO-blue)
+![Okta AI Agent](https://img.shields.io/badge/Okta-AI%20Agent%20Governance-blue)
+![Cross App Access](https://img.shields.io/badge/XAA-ID--JAG-green)
 ![Next.js](https://img.shields.io/badge/Next.js-14-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-Python-green)
+![LangGraph](https://img.shields.io/badge/LangGraph-Orchestration-purple)
 
-## 🎯 What This Demo Shows
+## What This Demo Shows
 
-This application demonstrates **internal SSO with standard OAuth 2.0 Token Exchange** where:
+This application demonstrates **Okta AI Agent Governance** using **Cross App Access (XAA)** - the emerging standard for enterprise AI agent authentication that MCP (Model Context Protocol) has officially adopted.
 
-- ✅ **Single Authorization Server** - Everything handled by Okta (no external auth servers)
-- ✅ **Standard Token Exchange** - RFC 8693 without Cross-App Access complexity
-- ✅ **AI Agent Registration** - Demonstrates Okta's AI Agent management
-- ✅ **MCP Integration** - Model Context Protocol for NCAA basketball data
-- ✅ **No ID-JAG Required** - Simple flow because same auth server
+### The Security Problem
 
-### 🆚 Comparison to Cross-App Access (Football Demo)
+When AI agents access enterprise data on behalf of users, you need to answer:
+- **WHO** requested this access? (Which user?)
+- **WHAT** AI system performed the action? (Which agent?)
+- **WHEN** did it happen?
+- **CAN** we revoke access immediately?
 
-| Feature | Internal SSO (Basketball) | Cross-App Access (Football) |
-|---------|---------------------------|------------------------------|
-| **Authorization Servers** | 1 (Okta only) | 2 (Okta + Todo0) |
-| **Token Flow** | ID Token → Access Token | ID Token → ID-JAG → Access Token |
-| **Complexity** | Simple (4 steps) | Complex (7 steps) |
-| **Use Case** | Internal tools, same org | External SaaS, different orgs |
-| **ID-JAG Needed** | ❌ No | ✅ Yes |
-| **Trust Domain** | Single | Cross-domain |
+### What This Demo Proves
 
-## 🌟 Why Internal SSO?
+This demo implements **Scenario 2** from our [four scenarios framework](docs/okta-security-value.md#the-four-scenarios-how-ai-agents-access-your-data):
 
-### The Internal Use Case
+| Feature | Description |
+|---------|-------------|
+| **Cross App Access (XAA)** | Industry-standard pattern adopted by MCP for enterprise AI authentication |
+| **ID-JAG Token Exchange** | Identity Assertion JWT Authorization Grant - every token contains user + agent identity |
+| **Workload Principal (`wlp`)** | First-class AI agent identity in Okta Universal Directory |
+| **Role-Based Access Control** | User group membership determines which scopes are granted |
+| **Complete Audit Trail** | Every token exchange logged with who, what, when, why |
+| **Instant Revocation** | One-click deactivation of any AI agent |
 
-When you build applications that all trust the **same authorization server**, you don't need Cross-App Access complexity:
+### Live Demo
 
-```
-Basketball Agent App → Okta (login) → ID Token
-                    ↓
-            Token Exchange to Okta
-                    ↓
-               Access Token
-                    ↓
-          Call Basketball MCP Server
-```
+- **Frontend**: [progear-sales-agent.vercel.app](https://progear-sales-agent.vercel.app)
+- **Backend API**: [courtedge-progear-backend.onrender.com](https://courtedge-progear-backend.onrender.com)
 
-**No cross-domain trust needed!** Everything stays within Okta.
-
-### When to Use Internal SSO vs XAA
-
-**✅ Use Internal SSO When:**
-- All apps trust the same authorization server
-- You control both the requesting and resource applications
-- Internal enterprise tools
-- Simpler architecture preferred
-
-**✅ Use Cross-App Access (XAA) When:**
-- Different authorization servers (customer IdP + your SaaS)
-- Cross-domain trust required
-- External third-party integrations
-- Need enterprise-level visibility across domains
-
-## 🏗️ Architecture
-
-### High-Level Overview
+## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    User Browser                     │
-│                                                     │
-│  ┌────────────────────────────────────────────┐     │
-│  │  Basketball Stats AI (React)               │     │
-│  │  • AI-powered chat interface               │     │
-│  │  • NCAA basketball queries                 │     │
-│  └────────────────────────────────────────────┘     │
-└───────────────────┬─────────────────────────────────┘
-                    │
-                    │ HTTPS
-                    ▼
-┌────────────────────────────────────────────────────┐
-│      Basketball Agent (Next.js - Port 3001)        │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  NextAuth.js OAuth Client                    │  │
-│  │  • OpenID Connect to Okta                    │  │
-│  │  • Session Management                        │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Token Exchange Client                       │  │
-│  │  • RFC 8693 Token Exchange                   │  │
-│  │  • No ID-JAG (same auth server)              │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  MCP Client                                  │  │
-│  │  • Spawns Basketball MCP Server              │  │
-│  │  • JSON-RPC communication                    │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
-│  │  Claude AI Integration                       │  │
-│  │  • Anthropic API                             │  │
-│  │  • Tool use with MCP                         │  │
-│  └──────────────────────────────────────────────┘  │
-└────┬───────────────────┬───────────────────────────┘
-     │                   │
-     │ ① OAuth Login     │ ② MCP Queries
-     │                   │
-     ▼                   ▼
-┌─────────────┐    ┌──────────────────────┐
-│  Okta IdP   │    │  Basketball MCP      │
-│             │    │  Server (Node.js)    │
-│ • Agent     │    │                      │
-│   Auth      │    │  ┌────────────────┐  │
-│ • Token     │    │  │ Basketball     │  │
-│   Exchange  │    │  │ Tools:         │  │
-│             │    │  │ • get_rankings │  │
-│             │    │  │ • get_stats    │  │
-│             │    │  │ • compare      │  │
-│             │    │  └────────────────┘  │
-└─────────────┘    └──────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Browser                             │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  ProGear Sales Agent (Next.js 14 + React)                 │  │
+│  │  - Chat interface with AI agent                           │  │
+│  │  - Real-time token exchange visualization                 │  │
+│  │  - Agent flow tracking                                    │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ HTTPS
+                             ▼
+┌────────────────────────────────────────────────────────────────┐
+│          FastAPI Backend (LangGraph Orchestrator)               │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │  Multi-Agent Workflow (LangGraph)                      │    │
+│  │                                                        │    │
+│  │  router → exchange_tokens → process_agents → response  │    │
+│  │                                                        │    │
+│  │  - Intent-based scope detection                        │    │
+│  │  - ID-JAG token exchange per MCP                       │    │
+│  │  - Graceful access denial handling                     │    │
+│  └────────────────────────────────────────────────────────┘    │
+└────────────────┬───────────────────────────────────────────────┘
+                 │
+    ┌────────────┼────────────┬────────────┬────────────┐
+    │            │            │            │            │
+    ▼            ▼            ▼            ▼            ▼
+┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌──────────┐
+│ Sales  │  │Inventory│  │Customer│  │Pricing │  │  Okta    │
+│  MCP   │  │  MCP   │  │  MCP   │  │  MCP   │  │  IdP     │
+└────────┘  └────────┘  └────────┘  └────────┘  └──────────┘
 ```
 
-### Internal SSO Token Flow (4 Steps)
+## Key Components
+
+### 1. Frontend (Next.js 14)
+- **Location**: `packages/progear-sales-agent/`
+- **Auth**: NextAuth.js with Okta OIDC provider
+- **Features**: Chat interface, token exchange visualization, architecture overview
+
+### 2. Backend (FastAPI + LangGraph)
+- **Location**: `backend/`
+- **Orchestrator**: LangGraph workflow for multi-agent coordination
+- **Auth**: Okta AI SDK for ID-JAG token exchange
+- **LLM**: Anthropic Claude for routing and response generation
+
+### 3. MCP Servers (4 Protected APIs)
+Each MCP server has its own Okta Authorization Server:
+
+| MCP Server | Audience | Scopes |
+|------------|----------|--------|
+| Sales | `api://progear-sales` | `sales:read`, `sales:quote`, `sales:order` |
+| Inventory | `api://progear-inventory` | `inventory:read`, `inventory:write`, `inventory:alert` |
+| Customer | `api://progear-customer` | `customer:read`, `customer:lookup`, `customer:history` |
+| Pricing | `api://progear-pricing` | `pricing:read`, `pricing:margin`, `pricing:discount` |
+
+### 4. Okta AI Agent Governance
+- **Workload Principal (`wlp`)**: AI agent identity in Okta Universal Directory - first-class identity like users
+- **Authentication**: JWT Bearer with RS256 private key (no shared secrets)
+- **Token Exchange**: ID-JAG (Identity Assertion JWT Authorization Grant) - user + agent in every token
+- **RBAC**: Group-based access policies - same model as human access
+- **Governance**: Mandatory owner, instant revocation, complete audit trail
+
+## Role-Based Access Control
+
+Three user groups with different access levels:
+
+| Group | Sales MCP | Inventory MCP | Customer MCP | Pricing MCP |
+|-------|-----------|---------------|--------------|-------------|
+| **ProGear-Sales** | Full access | Read only | Full access | Full access |
+| **ProGear-Warehouse** | No access | Full access | No access | No access |
+| **ProGear-Finance** | No access | No access | No access | Full access |
+
+## Token Exchange Flow
 
 ```
-1. User Login
-   User → Basketball Agent → Okta
-   Result: ID Token
-
-2. Token Exchange
-   Basketball Agent → Okta
-   Request: ID Token
-   Response: Access Token
-   (No ID-JAG needed - same auth server!)
-
-3. MCP Query
-   Basketball Agent → Basketball MCP Server
-   Uses: Access Token for authentication
-
-4. AI Response
-   Claude AI → Basketball Data → User
+1. User Login → Okta OIDC → ID Token
+2. Chat Query → LangGraph Router → Determine agents + scopes needed
+3. For each MCP:
+   a. ID Token → Okta (ID-JAG Exchange) → ID-JAG Token
+   b. ID-JAG Token → Auth Server → MCP Access Token (or DENIED)
+4. Process with authorized agents
+5. Generate unified response
 ```
 
-## 📋 Prerequisites
+## Quick Start
 
-### Required
+### Prerequisites
+- Node.js 18+
+- Python 3.9+
+- Okta account with AI Agent feature enabled
+- Anthropic API key
 
-- **Okta Account** (Production or Preview)
-  - Create at: [developer.okta.com](https://developer.okta.com)
-
-- **Node.js** v18.x or later
-- **Anthropic Claude API Key** (for AI chat)
-
-### Okta Configuration
-
-You need to create:
-1. **OIDC Web Application** for the Basketball Agent
-2. **AI Agent Registration** in Okta Directory
-
-## 🚀 Installation
-
-### 1. Clone Repository
+### Local Development
 
 ```bash
-cd /Users/johnc/Documents/internal-ssg
-```
+# Clone repository
+git clone https://github.com/your-org/courtedge-ai-demo.git
+cd courtedge-ai-demo
 
-### 2. Install Dependencies
+# Copy environment template
+cp .env.example .env
+# Edit .env with your credentials
 
-```bash
+# Install frontend dependencies
+cd packages/progear-sales-agent
 npm install
-```
 
-### 3. Build MCP Server
+# Install backend dependencies
+cd ../../backend
+pip install -r requirements.txt
 
-```bash
-cd packages/basketball-mcp-server
-npm run build
-```
+# Start backend (terminal 1)
+cd backend
+uvicorn api.main:app --reload --port 8000
 
-### 4. Configure Okta
-
-#### A. Create OIDC Application
-
-1. Log into **Okta Admin Console**
-2. Go to **Applications** → **Create App Integration**
-3. Choose **OIDC - OpenID Connect**
-4. Application type: **Web Application**
-5. Grant types:
-   - ✅ Authorization Code
-   - ✅ Refresh Token
-   - ✅ Token Exchange (**Important!**)
-6. Sign-in redirect URI: `http://sportsstatsgather.com:3001/api/auth/callback/okta`
-7. Sign-out redirect URI: `http://sportsstatsgather.com:3001`
-8. Save and copy **Client ID** and **Client Secret**
-
-#### B. Register AI Agent
-
-1. Go to **Directory** → **AI Agents**
-2. Click **Register AI Agent**
-3. Name: "Basketball Stats AI Agent"
-4. Assign **owner** (yourself)
-5. Add **credentials** (let Okta generate public/private key pair)
-6. **Link to OIDC app** created in step A
-7. **Activate** the agent
-
-#### C. Create Managed Connection
-
-1. In the AI Agent settings
-2. Create **managed connection**
-3. Select **authorization server**: Your Okta org authorization server
-4. Define **allowed scopes**: `openid`, `profile`, `email`
-5. Save
-
-### 5. Configure Environment Variables
-
-```bash
-cd packages/basketball-agent
-cp .env.local.example .env.local
-```
-
-Edit `.env.local`:
-
-```bash
-# Anthropic Claude API Key
-ANTHROPIC_API_KEY=your_claude_api_key_here
-
-# Okta Configuration
-OKTA_CLIENT_ID=your_okta_client_id
-OKTA_CLIENT_SECRET=your_okta_client_secret
-OKTA_ISSUER=https://your-org.okta.com
-OKTA_DOMAIN=your-org.okta.com
-
-# NextAuth
-NEXTAUTH_SECRET=$(openssl rand -base64 32)
-NEXTAUTH_URL=http://sportsstatsgather.com:3001
-
-# MCP Server Path
-MCP_SERVER_PATH=../basketball-mcp-server/dist/server.js
-
-# Public Environment Variables
-NEXT_PUBLIC_OKTA_ISSUER=https://your-org.okta.com
-NEXT_PUBLIC_APP_NAME=Basketball Stats AI
-NEXT_PUBLIC_APP_PORT=3001
-```
-
-### 6. Run Locally (for testing)
-
-```bash
-cd packages/basketball-agent
+# Start frontend (terminal 2)
+cd packages/progear-sales-agent
 npm run dev
 ```
 
-Open: **http://localhost:3001**
+Open [http://localhost:3000](http://localhost:3000)
 
-## 🌐 Production Deployment (Ubuntu Server)
+## Documentation
 
-### Deploy to sportsstatsgather.com:3001
+| Document | Purpose |
+|----------|---------|
+| **[Okta Security Value](docs/okta-security-value.md)** | For CISOs and security teams - explains the four scenarios, why XAA matters, MCP adoption, and governance capabilities |
+| **[Implementation Guide](docs/implementation-guide.md)** | Step-by-step deployment guide for Vercel + Render with complete Okta configuration |
+| **[Architecture Page](https://progear-sales-agent.vercel.app/architecture)** | Interactive visualization of the token exchange flow |
 
-#### Step 1: Transfer Files to Server
+## Technology Stack
 
-```bash
-# From your local machine
-scp -r /Users/johnc/Documents/internal-ssg betadmin@sportsstatsgather.com:~/
-```
+| Component | Technology |
+|-----------|------------|
+| Frontend | Next.js 14, React 18, Tailwind CSS, NextAuth.js |
+| Backend | FastAPI, LangGraph, LangChain, Python 3.9+ |
+| LLM | Anthropic Claude (claude-sonnet-4-20250514) |
+| Auth | Okta OIDC, Cross App Access (XAA), ID-JAG Token Exchange |
+| Deployment | Vercel (frontend), Render (backend) |
 
-#### Step 2: Server Setup
+## Environment Variables
 
-```bash
-# SSH into server
-ssh betadmin@sportsstatsgather.com
-
-# Navigate to project
-cd ~/internal-ssg
-
-# Install dependencies
-npm install
-
-# Build MCP server
-cd packages/basketball-mcp-server
-npm run build
-
-# Build Next.js app
-cd ../basketball-agent
-npm run build
-```
-
-#### Step 3: Configure Environment
+See `.env.example` for the complete list. Key variables:
 
 ```bash
-cd ~/internal-ssg/packages/basketball-agent
-nano .env.local
-# Add your production environment variables
+# Okta
+OKTA_DOMAIN=https://your-org.okta.com
+OKTA_AI_AGENT_ID=wlp...
+OKTA_AI_AGENT_PRIVATE_KEY={"kty":"RSA",...}
+
+# Authorization Servers (one per MCP)
+OKTA_SALES_AUTH_SERVER_ID=aus...
+OKTA_INVENTORY_AUTH_SERVER_ID=aus...
+OKTA_CUSTOMER_AUTH_SERVER_ID=aus...
+OKTA_PRICING_AUTH_SERVER_ID=aus...
+
+# LLM
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-#### Step 4: Create Systemd Service
+## Project Structure
 
-```bash
-sudo nano /etc/systemd/system/basketball-agent.service
+```
+courtedge-ai-demo/
+├── backend/
+│   ├── api/main.py              # FastAPI endpoints
+│   ├── auth/
+│   │   ├── agent_config.py      # Agent configuration
+│   │   ├── multi_agent_auth.py  # ID-JAG token exchange
+│   │   └── okta_auth.py         # Okta authentication
+│   └── orchestrator/
+│       └── orchestrator.py      # LangGraph workflow
+├── packages/
+│   └── progear-sales-agent/     # Next.js frontend
+│       ├── src/app/
+│       │   ├── page.tsx         # Chat interface
+│       │   └── architecture/    # Architecture page
+│       ├── src/components/      # React components
+│       └── src/lib/auth.ts      # NextAuth config
+├── .env.example                 # Environment template
+└── README.md                    # This file
 ```
 
-```ini
-[Unit]
-Description=Basketball Stats AI Agent (Internal SSO)
-After=network.target
+## License
 
-[Service]
-Type=simple
-User=betadmin
-WorkingDirectory=/home/betadmin/internal-ssg/packages/basketball-agent
-ExecStart=/usr/bin/npm start
-Restart=on-failure
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### Step 5: Start Service
-
-```bash
-sudo systemctl enable basketball-agent
-sudo systemctl start basketball-agent
-
-# Check status
-sudo systemctl status basketball-agent
-
-# View logs
-sudo journalctl -u basketball-agent -f
-```
-
-#### Step 6: Verify
-
-Open: **http://sportsstatsgather.com:3001**
-
-## 🎮 Usage
-
-### Basic Flow
-
-1. Navigate to **http://sportsstatsgather.com:3001**
-2. Click **Sign in with Okta**
-3. Enter your Okta credentials
-4. Ask basketball questions:
-   - "Who's leading the ACC?"
-   - "Compare Duke and North Carolina"
-   - "Show me top 10 teams"
-   - "What's Kansas's record?"
-
-### Internal SSO Flow Explained
-
-1. **User logs in** → Gets ID token from Okta
-2. **Token exchange** → App exchanges ID token for access token (same Okta server)
-3. **MCP query** → App calls basketball MCP server with access token
-4. **AI response** → Claude processes data and responds
-
-## 🔑 Key Technologies
-
-- **Next.js 14** - App router with server components
-- **NextAuth.js** - OAuth authentication
-- **Okta OAuth 2.0** - Token exchange (RFC 8693)
-- **Model Context Protocol** - AI tool integration
-- **Anthropic Claude** - AI language model
-- **React** - UI components
-- **TypeScript** - Type safety
-
-## 📊 Basketball Data
-
-Data files in `/data`:
-- `NCAABTeamRankings.json` - Team statistics and rankings
-- `tr_ncaab_team_game_logs.json` - Game-by-game results
-
-## 🐛 Troubleshooting
-
-### "Token Exchange Failed"
-
-**Fix:**
-1. Verify `OKTA_CLIENT_ID` and `OKTA_CLIENT_SECRET` are correct
-2. Ensure **Token Exchange** grant type is enabled in Okta app
-3. Check that AI Agent has a managed connection to the auth server
-
-### OAuth Callback Errors
-
-**Fix:**
-1. Verify redirect URI in Okta matches: `http://sportsstatsgather.com:3001/api/auth/callback/okta`
-2. Ensure `NEXTAUTH_URL=http://sportsstatsgather.com:3001`
-3. Restart the app
-
-### Port Already in Use
-
-**Fix:**
-```bash
-sudo lsof -i :3001 | grep LISTEN
-sudo systemctl stop basketball-agent
-```
-
-## 📞 Support
-
-**Issues:** Check systemd logs: `sudo journalctl -u basketball-agent -f`
-**Okta Forum:** [devforum.okta.com](https://devforum.okta.com)
-
-## ⚡ Quick Commands
-
-```bash
-# Start service
-sudo systemctl start basketball-agent
-
-# Stop service
-sudo systemctl stop basketball-agent
-
-# Restart service
-sudo systemctl restart basketball-agent
-
-# View logs
-sudo journalctl -u basketball-agent -f
-
-# Check status
-sudo systemctl status basketball-agent
-```
+MIT License - See LICENSE file for details.
 
 ---
 
-**Built with ❤️ to demonstrate Internal SSO patterns with Okta** 🏀
+**Built to demonstrate Okta AI Agent Governance with Cross App Access (XAA)** - the same pattern MCP has adopted for enterprise AI authentication.
