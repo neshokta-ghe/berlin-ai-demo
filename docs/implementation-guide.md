@@ -55,40 +55,40 @@ A basketball equipment sales AI assistant with:
 Before diving in, understand the order of operations. There's a circular dependency between services that we solve by deploying in stages:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        RECOMMENDED DEPLOYMENT ORDER                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  PHASE 1: Initial Okta Setup                                                │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │ • Create OIDC App (use placeholder redirect URIs for now)         │     │
-│  │ • Create Demo Users and Groups                                     │     │
-│  │ • Register AI Agent and download private key                       │     │
-│  │ • Create 4 Authorization Servers with policies                     │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-│                                    ▼                                         │
-│  PHASE 2: Deploy Frontend to Vercel                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │ • Fork repo and import to Vercel                                   │     │
-│  │ • Get your Vercel URL (e.g., my-app.vercel.app)                   │     │
-│  │ • Configure environment variables                                  │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-│                                    ▼                                         │
-│  PHASE 3: Deploy Backend to Render                                          │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │ • Create web service from your fork                                │     │
-│  │ • Get your Render URL (e.g., my-backend.onrender.com)             │     │
-│  │ • Configure environment variables (including CORS for Vercel)     │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-│                                    ▼                                         │
-│  PHASE 4: Connect Everything                                                │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │ • Update Vercel with Render URL                                    │     │
-│  │ • Update Okta redirect URIs with real Vercel URL                  │     │
-│  │ • Test the complete flow                                           │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      RECOMMENDED DEPLOYMENT ORDER                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  PHASE 1: Initial Okta Setup                                            │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ • Create OIDC App (use placeholder redirect URIs for now)        │  │
+│  │ • Create Demo Users and Groups                                    │  │
+│  │ • Register AI Agent and download private key                      │  │
+│  │ • Create 4 Authorization Servers with policies                    │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                   ▼                                     │
+│  PHASE 2: Deploy Frontend to Vercel                                     │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ • Fork repo and import to Vercel                                  │  │
+│  │ • Get your Vercel URL (e.g., my-app.vercel.app)                   │  │
+│  │ • Configure environment variables                                 │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                   ▼                                     │
+│  PHASE 3: Deploy Backend to Render                                      │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ • Create web service from your fork                               │  │
+│  │ • Get your Render URL (e.g., my-backend.onrender.com)             │  │
+│  │ • Configure environment variables (including CORS for Vercel)    │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                   ▼                                     │
+│  PHASE 4: Connect Everything                                            │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │ • Update Vercel with Render URL                                   │  │
+│  │ • Update Okta redirect URIs with real Vercel URL                  │  │
+│  │ • Test the complete flow                                          │  │
+│  └───────────────────────────────────────────────────────────────────┘  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 > **Why this order?** You need the Vercel URL to configure Okta redirects, and you need the Render URL to configure the frontend. By using placeholder values initially, you can complete each phase and then circle back to connect them.
@@ -100,58 +100,58 @@ Before diving in, understand the order of operations. There's a circular depende
 Before diving into deployment, understand how the pieces fit together:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              USER                                        │
-│                    (Browser on any device)                              │
-└───────────────────────────────┬─────────────────────────────────────────┘
-                                │
-                                │ HTTPS
-                                ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         VERCEL (Frontend)                                │
-│                                                                          │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                     Next.js Application                          │   │
-│   │                                                                  │   │
-│   │  • Chat interface                                                │   │
-│   │  • Token exchange visualization                                  │   │
-│   │  • User authentication (NextAuth.js + Okta)                     │   │
-│   │  • Security dashboard                                           │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-│   URL: https://your-app.vercel.app                                      │
-└───────────────────────────────┬─────────────────────────────────────────┘
-                                │
-                                │ API calls with ID token
-                                ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         RENDER (Backend)                                 │
-│                                                                          │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                     FastAPI Application                          │   │
-│   │                                                                  │   │
-│   │  • LangGraph orchestrator (routes to agents)                    │   │
-│   │  • Okta token exchange (ID → ID-JAG → MCP token)               │   │
-│   │  • 4 MCP servers (Sales, Inventory, Customer, Pricing)         │   │
-│   │  • Claude AI integration                                        │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-│   URL: https://your-backend.onrender.com                                │
-└───────────────────────────────┬─────────────────────────────────────────┘
-                                │
-                                │ Token exchange requests
-                                ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              OKTA                                        │
-│                                                                          │
-│   • User authentication (OIDC)                                          │
-│   • AI Agent identity (wlp...)                                          │
-│   • 4 Authorization servers (MCP APIs)                                   │
-│   • Group-based access policies                                         │
-│   • Audit logging                                                       │
-│                                                                          │
-│   URL: https://your-org.okta.com                                        │
-└─────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                             USER                                  │
+│                   (Browser on any device)                         │
+└─────────────────────────────────┬─────────────────────────────────┘
+                                  │
+                                  │ HTTPS
+                                  ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                        VERCEL (Frontend)                          │
+│                                                                   │
+│   ┌───────────────────────────────────────────────────────────┐   │
+│   │                   Next.js Application                     │   │
+│   │                                                           │   │
+│   │  • Chat interface                                         │   │
+│   │  • Token exchange visualization                           │   │
+│   │  • User authentication (NextAuth.js + Okta)               │   │
+│   │  • Security dashboard                                     │   │
+│   └───────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│   URL: https://your-app.vercel.app                                │
+└─────────────────────────────────┬─────────────────────────────────┘
+                                  │
+                                  │ API calls with ID token
+                                  ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                        RENDER (Backend)                           │
+│                                                                   │
+│   ┌───────────────────────────────────────────────────────────┐   │
+│   │                   FastAPI Application                     │   │
+│   │                                                           │   │
+│   │  • LangGraph orchestrator (routes to agents)              │   │
+│   │  • Okta token exchange (ID → ID-JAG → MCP token)          │   │
+│   │  • 4 MCP servers (Sales, Inventory, Customer, Pricing)    │   │
+│   │  • Claude AI integration                                  │   │
+│   └───────────────────────────────────────────────────────────┘   │
+│                                                                   │
+│   URL: https://your-backend.onrender.com                          │
+└─────────────────────────────────┬─────────────────────────────────┘
+                                  │
+                                  │ Token exchange requests
+                                  ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                             OKTA                                  │
+│                                                                   │
+│   • User authentication (OIDC)                                    │
+│   • AI Agent identity (wlp...)                                    │
+│   • 4 Authorization servers (MCP APIs)                            │
+│   • Group-based access policies                                   │
+│   • Audit logging                                                 │
+│                                                                   │
+│   URL: https://your-org.okta.com                                  │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### The Token Exchange Flow
@@ -279,23 +279,23 @@ backend/
 ### Communication Flow
 
 ```
-┌─────────────┐         HTTPS API calls          ┌─────────────┐
-│   Vercel    │ ──────────────────────────────▶  │   Render    │
-│  (Frontend) │                                  │  (Backend)  │
-│             │ ◀──────────────────────────────  │             │
-└─────────────┘         JSON responses           └─────────────┘
-       │                                               │
-       │                                               │
-       │ Okta OAuth login                              │ Okta token exchange
-       │ (browser redirect)                            │ (server-to-server)
-       ▼                                               ▼
-┌─────────────────────────────────────────────────────────┐
-│                         OKTA                            │
-│                                                         │
-│  • Authenticates users (issues ID tokens to frontend)   │
-│  • Validates AI Agent identity (backend JWT assertion)  │
-│  • Issues MCP tokens based on user's group membership   │
-└─────────────────────────────────────────────────────────┘
+┌──────────────┐       HTTPS API calls        ┌──────────────┐
+│    Vercel    │ ──────────────────────────▶  │    Render    │
+│  (Frontend)  │                              │   (Backend)  │
+│              │ ◀──────────────────────────  │              │
+└──────────────┘       JSON responses         └──────────────┘
+       │                                             │
+       │                                             │
+       │ Okta OAuth login                            │ Okta token exchange
+       │ (browser redirect)                          │ (server-to-server)
+       ▼                                             ▼
+┌───────────────────────────────────────────────────────────┐
+│                          OKTA                             │
+│                                                           │
+│  • Authenticates users (issues ID tokens to frontend)     │
+│  • Validates AI Agent identity (backend JWT assertion)    │
+│  • Issues MCP tokens based on user's group membership     │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### Key Configuration Points
@@ -712,56 +712,56 @@ Repeat for all 4 authorization servers.
 Use this checklist to track what you've collected:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    OKTA VALUES CHECKLIST                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  □ OKTA_DOMAIN                                                              │
-│    Your Okta org URL                                                        │
-│    Example: https://dev-12345.okta.com                                      │
-│    Where: Browser URL bar when logged into Okta Admin                       │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_CLIENT_ID                                                           │
-│    OIDC Application Client ID                                               │
-│    Example: 0oaXXXXXXXXXXXXXX                                              │
-│    Where: Applications → ProGear Sales Agent App → General tab              │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_CLIENT_SECRET                                                       │
-│    OIDC Application Client Secret                                           │
-│    Where: Applications → ProGear Sales Agent App → General tab              │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_AI_AGENT_ID                                                         │
-│    AI Agent Entity ID                                                       │
-│    Example: wlpXXXXXXXXXXXXXX                                              │
-│    Where: Applications → AI Agents → ProGear Sales Agent                    │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_AI_AGENT_PRIVATE_KEY                                                │
-│    JWK Private Key (SINGLE LINE - no line breaks!)                          │
-│    Where: Downloaded when you created credentials in Step 4                 │
-│    Status: □ Downloaded  □ Converted to single line                        │
-│                                                                              │
-│  □ OKTA_SALES_AUTH_SERVER_ID                                                │
-│    Example: ausXXXXXXXXXXXXXX                                              │
-│    Where: Security → API → ProGear Sales MCP → Issuer URI (last segment)   │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_INVENTORY_AUTH_SERVER_ID                                            │
-│    Where: Security → API → ProGear Inventory MCP → Issuer URI              │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_CUSTOMER_AUTH_SERVER_ID                                             │
-│    Where: Security → API → ProGear Customer MCP → Issuer URI               │
-│    Your value: _____________________________________________                │
-│                                                                              │
-│  □ OKTA_PRICING_AUTH_SERVER_ID                                              │
-│    Where: Security → API → ProGear Pricing MCP → Issuer URI                │
-│    Your value: _____________________________________________                │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                       OKTA VALUES CHECKLIST                           │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  □ OKTA_DOMAIN                                                        │
+│    Your Okta org URL                                                  │
+│    Example: https://dev-12345.okta.com                                │
+│    Where: Browser URL bar when logged into Okta Admin                 │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_CLIENT_ID                                                     │
+│    OIDC Application Client ID                                         │
+│    Example: 0oaXXXXXXXXXXXXXX                                         │
+│    Where: Applications → ProGear Sales Agent App → General tab        │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_CLIENT_SECRET                                                 │
+│    OIDC Application Client Secret                                     │
+│    Where: Applications → ProGear Sales Agent App → General tab        │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_AI_AGENT_ID                                                   │
+│    AI Agent Entity ID                                                 │
+│    Example: wlpXXXXXXXXXXXXXX                                         │
+│    Where: Applications → AI Agents → ProGear Sales Agent              │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_AI_AGENT_PRIVATE_KEY                                          │
+│    JWK Private Key (SINGLE LINE - no line breaks!)                    │
+│    Where: Downloaded when you created credentials in Step 4           │
+│    Status: □ Downloaded  □ Converted to single line                   │
+│                                                                       │
+│  □ OKTA_SALES_AUTH_SERVER_ID                                          │
+│    Example: ausXXXXXXXXXXXXXX                                         │
+│    Where: Security → API → ProGear Sales MCP → Issuer URI             │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_INVENTORY_AUTH_SERVER_ID                                      │
+│    Where: Security → API → ProGear Inventory MCP → Issuer URI         │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_CUSTOMER_AUTH_SERVER_ID                                       │
+│    Where: Security → API → ProGear Customer MCP → Issuer URI          │
+│    Your value: ___________________________________________            │
+│                                                                       │
+│  □ OKTA_PRICING_AUTH_SERVER_ID                                        │
+│    Where: Security → API → ProGear Pricing MCP → Issuer URI           │
+│    Your value: ___________________________________________            │
+│                                                                       │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 > **Tip:** Copy this checklist to a text file and fill it in as you go. You'll reference these values multiple times during deployment.

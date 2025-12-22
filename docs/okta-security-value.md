@@ -43,9 +43,9 @@ Before diving into technical details, understand that there are four ways an AI 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                   THE FOUR AI AGENT ACCESS SCENARIOS                         │
+│                   THE FOUR AI AGENT ACCESS SCENARIOS                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  SCENARIO 1: Standard Token Exchange                                        │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │  App ──▶ Okta ──▶ API                                                  │ │
@@ -53,7 +53,7 @@ Before diving into technical details, understand that there are four ways an AI 
 │  │  • No user attribution in tokens                                       │ │
 │  │  • Audit shows "app got token" - nothing more                          │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
+│                                                                             │
 │  SCENARIO 2: ID-JAG with Okta Auth Servers (THIS DEMO)                      │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │  AI Agent (wlp) ──▶ Okta ID-JAG ──▶ Okta Auth Server                   │ │
@@ -62,7 +62,7 @@ Before diving into technical details, understand that there are four ways an AI 
 │  │  • Complete audit trail: who, what, when, why                          │ │
 │  │  • Works TODAY - no external dependencies                              │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
+│                                                                             │
 │  SCENARIO 3: ID-JAG/XAA with Customer External Auth Server                  │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │  AI Agent (wlp) ──▶ Okta ID-JAG ──▶ Customer's Auth Server             │ │
@@ -71,7 +71,7 @@ Before diving into technical details, understand that there are four ways an AI 
 │  │  • Full governance - customer controls both sides                      │ │
 │  │  • Works TODAY - requires customer engineering effort                  │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
+│                                                                             │
 │  SCENARIO 4: ID-JAG/XAA with ISV Auth Servers                               │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │  AI Agent (wlp) ──▶ Okta ID-JAG ──▶ Salesforce/ServiceNow/etc.         │ │
@@ -80,7 +80,7 @@ Before diving into technical details, understand that there are four ways an AI 
 │  │  • Same governance model extends to external SaaS                      │ │
 │  │  • Growing ecosystem - MCP has adopted this pattern                    │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -258,18 +258,18 @@ This demo implements Scenario 2 with four internal authorization servers:
 ### Admin Console Visibility
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  Applications → AI Agents                                                 │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
-│  ProGear Sales Agent                                                      │
-│  ID: wlp8x5q7mvH86KvFJ0g7                                                │
-│  Owner: john.admin@company.com                                            │
-│  Status: ● Active                                                         │
-│  Managed Connections: 4 APIs                                              │
-│                                                                           │
-│  Every AI agent visible. Every owner identified. One click to stop.      │
-└──────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  Applications → AI Agents                                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ProGear Sales Agent                                                │
+│  ID: wlp8x5q7mvH86KvFJ0g7                                           │
+│  Owner: john.admin@company.com                                      │
+│  Status: ● Active                                                   │
+│  Managed Connections: 4 APIs                                        │
+│                                                                     │
+│  Every AI agent visible. Every owner identified. One click to stop. │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -366,12 +366,13 @@ Cross App Access (XAA) using ID-JAG where the resource server is a third-party S
 
 ```
 ┌────────────────┐      ┌────────────────┐      ┌────────────────┐
-│   AI Agent     │ ───▶ │     OKTA       │ ───▶ │  Salesforce    │
-│   (wlp...)     │      │    ID-JAG      │      │  ServiceNow    │
+│   AI Agent     │ ───▶ │     OKTA       │ ───▶ │  Salesforce /  │
+│   (wlp...)     │      │    ID-JAG      │      │  ServiceNow /  │
 └────────────────┘      └────────────────┘      │  Box, etc.     │
         │                       │               └────────────────┘
-        │ Workload Principal    │ ID-JAG token          │
-        │ still in Okta         │ with act claim        │ ISV validates
+        │                       │                       │
+        │ Workload Principal    │ ID-JAG token          │ ISV validates
+        │ still in Okta         │ with act claim        │ and issues token
         ▼                       ▼                       ▼
 ```
 
@@ -471,27 +472,27 @@ A **Workload Principal** (ID starts with `wlp`) is Okta's identity type for AI a
 ### Where It Lives
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    OKTA UNIVERSAL DIRECTORY                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   USERS (People)              GROUPS                            │
-│   ┌──────────────┐           ┌──────────────┐                   │
-│   │ sarah.sales  │           │ ProGear-Sales│                   │
-│   │ mike.manager │           │ ProGear-Warehouse                │
-│   │ frank.finance│           │ ProGear-Finance                  │
-│   └──────────────┘           └──────────────┘                   │
-│                                                                 │
-│   AI AGENTS (Workload Principals)    ← First-class identity     │
-│   ┌─────────────────────────────────────────────────┐           │
-│   │ ProGear Sales Agent (wlp8x5q7mvH86KvFJ0g7)      │           │
-│   │   • Owner: admin@company.com                    │           │
-│   │   • Credentials: RS256 key pair                 │           │
-│   │   • Linked Apps: ProGear Sales Agent App        │           │
-│   │   • Status: ACTIVE                              │           │
-│   └─────────────────────────────────────────────────┘           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                     OKTA UNIVERSAL DIRECTORY                      │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   USERS (People)                GROUPS                            │
+│   ┌────────────────┐            ┌─────────────────────┐           │
+│   │ sarah.sales    │            │ ProGear-Sales       │           │
+│   │ mike.manager   │            │ ProGear-Warehouse   │           │
+│   │ frank.finance  │            │ ProGear-Finance     │           │
+│   └────────────────┘            └─────────────────────┘           │
+│                                                                   │
+│   AI AGENTS (Workload Principals)       ← First-class identity    │
+│   ┌─────────────────────────────────────────────────────┐         │
+│   │ ProGear Sales Agent (wlp8x5q7mvH86KvFJ0g7)          │         │
+│   │   • Owner: admin@company.com                        │         │
+│   │   • Credentials: RS256 key pair                     │         │
+│   │   • Linked Apps: ProGear Sales Agent App            │         │
+│   │   • Status: ACTIVE                                  │         │
+│   └─────────────────────────────────────────────────────┘         │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why This Matters for Security
