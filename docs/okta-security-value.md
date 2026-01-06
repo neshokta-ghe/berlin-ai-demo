@@ -15,9 +15,8 @@
 7. [Industry Validation: MCP Adopts Cross App Access](#industry-validation-mcp-adopts-cross-app-access)
 8. [The Workload Principal: Your AI Agent's Identity](#the-workload-principal-your-ai-agents-identity)
 9. [Proof: What You See in Audit Logs](#proof-what-you-see-in-audit-logs)
-10. [The Governance Model](#the-governance-model)
-11. [Real Demo Scenarios with Evidence](#real-demo-scenarios-with-evidence)
-12. [Security and Governance FAQ](#security-and-governance-faq)
+10. [Real Demo Scenarios with Evidence](#real-demo-scenarios-with-evidence)
+11. [Security and Governance FAQ](#security-and-governance-faq)
 
 ---
 
@@ -469,6 +468,50 @@ A **Workload Principal** (ID starts with `wlp`) is Okta's identity type for AI a
 | **Managed Connections** | Which APIs this agent can access | Explicit scope boundaries |
 | **Enable/Disable Toggle** | One click to activate or deactivate | Instant revocation capability |
 
+### One Identity, Multiple APIs
+
+A common point of confusion: how does **one** Workload Principal work with **multiple** APIs and **multiple** internal agents?
+
+| Concept | Count | What It Is |
+|---------|-------|------------|
+| **Okta Workload Principal** | 1 | The governed identity (`wlp...`) registered in Okta Universal Directory |
+| **Authorization Servers** | 4 | APIs the agent can access (Sales, Inventory, Customer, Pricing) |
+| **Application Agents** | Many | Internal workflow components (LangGraph nodes, MCP tools, etc.) |
+
+**Why one identity?** Okta governs at the identity level, not the implementation level. Your AI application might use LangChain, LangGraph, CrewAI, or custom orchestration with dozens of internal "agents" - Okta doesn't care. What matters for governance is:
+
+- **Who is acting?** → The single Workload Principal identity
+- **On whose behalf?** → The authenticated user (via ID-JAG)
+- **Accessing what?** → The Authorization Server determines allowed scopes
+
+Your internal architecture (how many LangGraph nodes, which tools, what routing logic) is an implementation detail. Okta provides the security boundary: one governed identity that can be monitored, audited, and revoked - regardless of how complex your internal orchestration becomes.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                       APPLICATION                               │
+│                                                                 │
+│   LangGraph Orchestrator                                        │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
+│   │  Sales   │ │Inventory │ │ Customer │ │ Pricing  │           │
+│   │  Agent   │ │  Agent   │ │  Agent   │ │  Agent   │           │
+│   └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘           │
+│        │            │            │            │                 │
+│        └────────────┴─────┬──────┴────────────┘                 │
+│                           │                                     │
+│                           ▼                                     │
+│              ┌─────────────────────────┐                        │
+│              │  ONE Workload Principal │                        │
+│              │  (wlp8x5q7mvH86KvFJ0g7) │                        │
+│              └─────────────────────────┘                        │
+│                           │                                     │
+└───────────────────────────┼─────────────────────────────────────┘
+                            │
+                            ▼ All token exchanges use this ONE identity
+                         ┌──────┐
+                         │ OKTA │
+                         └──────┘
+```
+
 ### Where It Lives
 
 ```
@@ -601,45 +644,6 @@ When Mike Manager (warehouse team) tries to access customer data:
 ```
 
 **This is the audit trail your compliance team needs.**
-
----
-
-## The Governance Model
-
-### Five Pillars of AI Agent Governance
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  AI AGENT GOVERNANCE MODEL                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. IDENTITY          Every agent has a Workload Principal      │
-│     ────────────────  (wlp...) in Universal Directory           │
-│                                                                 │
-│  2. OWNERSHIP         Every agent MUST have an owner            │
-│     ────────────────  (required field, not optional)            │
-│                                                                 │
-│  3. DELEGATION        Agent acts ON BEHALF OF users             │
-│     ────────────────  (user identity preserved in tokens)       │
-│                                                                 │
-│  4. POLICY            Access controlled by group membership     │
-│     ────────────────  (same policies that govern human access)  │
-│                                                                 │
-│  5. AUDITABILITY      Every action logged with full context     │
-│     ────────────────  (who, what, when, why, outcome)           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Instant Revocation
-
-If an AI agent is compromised or behaving unexpectedly:
-
-1. Go to **Applications** → **AI Agents**
-2. Find the agent
-3. Click **Deactivate**
-
-**Result:** All token exchanges immediately fail. No credential rotation needed. No hunting for API keys. One click.
 
 ---
 
