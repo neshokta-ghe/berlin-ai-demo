@@ -466,18 +466,20 @@ Create three groups to demonstrate RBAC:
 
 ### Step 4: Register the AI Agent
 
-1. Navigate to **Applications** → **AI Agents**
+1. Navigate to **Directory** → **AI Agents**
    - If you don't see this menu item, contact Okta support to enable AI Agent Governance for your org
 2. Click **Register AI Agent**
-3. Configure:
+3. Provide following details and register the Agent:
 
    ```
    Name: ProGear Sales Agent
    Description: Multi-agent sales assistant for ProGear sporting goods
    ```
-
+  When prompted to assign Owners, select the currently logged in Okta admin or any other user you have as the owner and save.
+  
 4. **Add Credentials:**
-   - Click **Add credential**
+   - Select the ***Registered Agent** and navigate to ***Credentials** tab
+   - Click **Add Public Key**
    - Select **Generate new key pair**
    - Okta generates an RS256 public/private key pair
    - **Download and save the private key (JWK format)** - click the download button
@@ -579,8 +581,8 @@ Create one authorization server per MCP API. Each represents a different domain 
 
    | Name | Description | Default Scope |
    |------|-------------|---------------|
-   | `sales:read` | View sales data | No |
-   | `sales:quote` | Create quotes | No |
+   | `sales:read`  | View sales data | No |
+   | `sales:quote` | Create quotes   | No |
    | `sales:order` | Create/modify orders | No |
 
 6. **Add Access Policy:**
@@ -692,7 +694,15 @@ For each Authorization Server, you must add the AI Agent to the policy's "Assign
 
 Repeat for all 4 authorization servers.
 
-### Step 7: Record All Your IDs
+### Step 7: Update Agent managed connections
+Once you have create authorization servers per MCP API, Use managed connections to add connections to all auth servers with scopes listed for data access while maintaining centralized control through Okta.
+**Manage Connection:**
+   - Select the ***Registered Agent** and navigate to ***Managed Connections** tab
+   - Click **Add Connection**
+   - Select **Generate new key pair**
+   - Okta generates an RS256 public/private key pair
+
+### Step 8: Record All Your IDs
 
 **Before proceeding, verify you have collected all these values.** You'll need them for Vercel and Render configuration.
 
