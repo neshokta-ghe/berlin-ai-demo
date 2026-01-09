@@ -591,7 +591,7 @@ Create one authorization server per MCP API. Each represents a different domain 
    ```
    Name: Sales Agent Policy
    Description: Controls access to Sales MCP
-   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   Assign to: ProGear Sales Agent and ProGear Sales Agent App
    ```
 
 8. **Add Policy Rule:**
@@ -623,7 +623,7 @@ Description: Authorization for Sales Inventory API
    ```
    Name: Inventory Agent Policy
    Description: Controls access to Inventory MCP
-   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   Assign to: ProGear Sales Agent and ProGear Sales Agent App
    ```
 
 **Policy Rules (add TWO rules):**
@@ -659,11 +659,12 @@ Description: Authorization for Sales Customer API
    ```
    Name: Customer Agent Policy
    Description: Controls access to Customer MCP
-   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   Assign to: ProGear Sales Agent and ProGear Sales Agent App
    ```
 
 **Policy Rule:**
 ```
+Rule Name: Customer Group Access
 IF Grant type is: Authorization Code, Token Exchange, JWT Bearer
 AND User is member of: ProGear-Sales
 AND Scopes: customer:read, customer:lookup, customer:history
@@ -686,7 +687,7 @@ Description: Authorization for Sales Pricing API
    ```
    Name: Pricing Agent Policy
    Description: Controls access to Pricing MCP
-   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   Assign to: ProGear Sales Agent and ProGear Sales Agent App
    ```
 
 **Policy Rules (add TWO rules):**
