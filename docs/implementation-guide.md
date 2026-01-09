@@ -611,6 +611,7 @@ Repeat the process:
 ```
 Name: ProGear Inventory MCP
 Audience: api://progear-inventory
+Description: Authorization for Sales Inventory API
 ```
 
 **Scopes:**
@@ -639,6 +640,7 @@ AND Scopes: inventory:read
 ```
 Name: ProGear Customer MCP
 Audience: api://progear-customer
+Description: Authorization for Sales Customer API
 ```
 
 **Scopes:**
@@ -658,6 +660,7 @@ AND Scopes: customer:read, customer:lookup, customer:history
 ```
 Name: ProGear Pricing MCP
 Audience: api://progear-pricing
+Description: Authorization for Sales Pricing API
 ```
 
 **Scopes:**
