@@ -591,7 +591,7 @@ Create one authorization server per MCP API. Each represents a different domain 
    ```
    Name: Sales Agent Policy
    Description: Controls access to Sales MCP
-   Assign to: All clients
+   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
    ```
 
 8. **Add Policy Rule:**
@@ -618,6 +618,13 @@ Description: Authorization for Sales Inventory API
 - `inventory:read` - View inventory levels
 - `inventory:write` - Modify inventory
 - `inventory:alert` - Manage inventory alerts
+
+**Access Policy:**
+   ```
+   Name: Inventory Agent Policy
+   Description: Controls access to Inventory MCP
+   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   ```
 
 **Policy Rules (add TWO rules):**
 
@@ -648,6 +655,13 @@ Description: Authorization for Sales Customer API
 - `customer:lookup` - Search customers
 - `customer:history` - View purchase history
 
+**Access Policy:**
+   ```
+   Name: Customer Agent Policy
+   Description: Controls access to Customer MCP
+   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   ```
+
 **Policy Rule:**
 ```
 IF Grant type is: Authorization Code, Token Exchange, JWT Bearer
@@ -667,6 +681,13 @@ Description: Authorization for Sales Pricing API
 - `pricing:read` - View prices
 - `pricing:margin` - View profit margins
 - `pricing:discount` - View/apply discounts
+
+**Access Policy:**
+   ```
+   Name: Pricing Agent Policy
+   Description: Controls access to Pricing MCP
+   Assign to: `ProGear Sales Agent` and `ProGear Sales Agent App`
+   ```
 
 **Policy Rules (add TWO rules):**
 
@@ -692,8 +713,7 @@ For each Authorization Server, you must add the AI Agent to the policy's "Assign
 
 1. Go to **Security** → **API** → **[Your Auth Server]** → **Access Policies** → **[Your Policy]**
 2. Click **Edit** on the policy
-3. In **Assigned clients**, add the **AI Agent entity** (`wlp...`)
-4. **NOT just the OIDC app** (`0oa...`) - you must add the AI Agent entity specifically!
+3. In **Assigned clients**, add the following **Clients** (`ProGear Sales Agent` and `ProGear Sales Agent App`)
 
 Repeat for all 4 authorization servers.
 
